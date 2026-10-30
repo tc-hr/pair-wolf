@@ -53,16 +53,17 @@ button{border:0;border-radius:15px;padding:13px 18px;font:700 14px inherit;font-
 <h2>あなたのお題</h2>
 <p class="muted" style="text-align:center">ほかの人には見せないでね</p>
 <div class="topic" id="myTopic">？？？</div>
-<p class="notice">ホストも参加者の一人。あなたの画面には自分のお題だけが表示されるよ。</p>
+
 </div>
 
 <div class="card hidden" id="voteCard">
-<h2>投票</h2><p class="muted">一番違うお題を持っていそうな人に投票してね。</p>
+<h2>投票</h2><p class="muted">自分と同じお題だと思う人に投票してね。</p>
 <div id="voteChoices"></div>
-<p class="notice">「自分のお題は1人だけかも」と思ったら、自分の名前を選んでもOK！投票先はほかの参加者には公開されないよ。</p>
+
 <button class="primary wide" id="sendVote">この人に投票する</button>
 </div>
 
+<div class="card hidden" id="voteResultCard"><h2>投票結果</h2><div id="voteResultContent"></div></div>
 <div class="card hidden" id="resultCard">
 <h2>結果発表 ♡</h2><div id="resultContent"></div>
 </div>
@@ -137,30 +138,45 @@ async function enter(code){roomCode=code;hide("home");show("game");$("roomCodeLa
 $("createRoom").onclick=async()=>{try{const name=$("nickname").value.trim();if(!name)throw Error("ニックネームを入力してね");const r=await call("create_room",{nickname:name});await enter(r.room_code);msg("ルームを作成したよ！コードを友達に共有してね");}catch(e){msg(e.message,true)}};
 $("joinRoom").onclick=async()=>{try{const name=$("nickname").value.trim(),code=$("roomCode").value.trim();if(!name||!code)throw Error("ニックネームとルームコードを入力してね");await call("join_room",{room_code:code,nickname:name});await enter(code);}catch(e){msg(e.message,true)}};
 async function refresh(){
- if(!roomCode)return;const s=await call("snapshot",{room_code:roomCode});state=s;
- $("phasePill").textContent=({lobby:"参加者募集中",reveal:"お題確認",discussion:"話し合い",voting:"投票中",results:"結果発表"})[s.phase]||s.phase;
+ if(!roomCode)return;
+ const s=await call("snapshot",{room_code:roomCode});state=s;
+ $("phasePill").textContent=({lobby:"参加者募集中",reveal:"お題確認",discussion:"投票結果",voting:"投票中",results:"お題発表"})[s.phase]||s.phase;
  $("players").innerHTML=s.players.map(p=>`<div class="player">${esc(p.nickname)} ${p.is_host?'✦':''} ${p.has_voted?'✓':''}</div>`).join("");
  $("playerCount").textContent=`${s.players.length} / 12人（3人以上で開始）`;
  $("hostSetup").classList.toggle("hidden",!s.is_host||s.phase!=="lobby");
- $("hostControls").classList.toggle("hidden",!s.is_host||!["reveal","discussion","voting","results"].includes(s.phase));
+ $("hostControls").classList.toggle("hidden",!s.is_host||!["reveal","discussion","results"].includes(s.phase));
  $("hostControls").innerHTML="";
- if(s.is_host&&s.phase==="reveal")$("hostControls").innerHTML='<button class="blue wide" id="toDiscussion">話し合いへ進む</button>';
- if(s.is_host&&s.phase==="discussion")$("hostControls").innerHTML='<button class="pink wide" id="toVoting">投票を開始する</button>';
+ if(s.is_host&&s.phase==="reveal")$("hostControls").innerHTML='<button class="pink wide" id="toVoting">投票を開始する</button>';
+ if(s.is_host&&s.phase==="discussion")$("hostControls").innerHTML='<button class="primary wide" id="revealTopics">全員のお題を発表する</button>';
  if(s.is_host&&s.phase==="results")$("hostControls").innerHTML='<button class="primary wide" id="nextRound">次のラウンドへ</button>';
- if($("toDiscussion"))$("toDiscussion").onclick=()=>changePhase("discussion");
  if($("toVoting"))$("toVoting").onclick=()=>changePhase("voting");
+ if($("revealTopics"))$("revealTopics").onclick=()=>changePhase("results");
  if($("nextRound"))$("nextRound").onclick=()=>changePhase("lobby");
- hide("secretCard");hide("voteCard");hide("resultCard");
+ hide("secretCard");hide("voteCard");hide("voteResultCard");hide("resultCard");
  if(["reveal","discussion","voting"].includes(s.phase)&&s.my_topic){show("secretCard");$("myTopic").textContent=s.my_topic;}
  if(s.phase==="voting"){show("voteCard");renderVotes(s);}
+ if(s.phase==="discussion"){show("voteResultCard");renderVoteResults(s);}
  if(s.phase==="results"){show("resultCard");renderResults(s);}
- $("status").textContent=s.phase==="voting"?`投票済み ${s.vote_count} / ${s.players.length}人`:s.phase==="discussion"?"みんなで話し合ってね":s.phase==="reveal"?"自分のお題を確認してね":"";
+ $("status").textContent=s.phase==="voting"?`投票済み ${s.vote_count} / ${s.players.length}人`:s.phase==="discussion"?"誰が誰に投票したか確認してね":s.phase==="reveal"?"自分のお題を確認してね":"";
 }
 async function changePhase(phase){try{await call("set_phase",{room_code:roomCode,phase});await refresh()}catch(e){msg(e.message,true)}}
 $("startRound").onclick=async()=>{try{if(state.players.length<3)throw Error("3人以上集まってから開始してね");await call("start_round",{room_code:roomCode,genre:$("genre").value});await refresh()}catch(e){msg(e.message,true)}};
 function renderVotes(s){$("voteChoices").innerHTML=s.players.map(p=>`<label class="choice"><input type="radio" name="vote" value="${esc(p.id)}" ${selectedVote===p.id?"checked":""}>${esc(p.nickname)}${p.id===user.id?"（自分）":""}</label>`).join("");document.querySelectorAll('input[name="vote"]').forEach(el=>el.onchange=()=>selectedVote=el.value);$("sendVote").disabled=!!s.has_voted; $("sendVote").textContent=s.has_voted?"投票済み":"この人に投票する";}
 $("sendVote").onclick=async()=>{try{if(!selectedVote)throw Error("投票先を選んでね");await call("vote",{room_code:roomCode,target_player_id:selectedVote});myVote=selectedVote;await refresh()}catch(e){msg(e.message,true)}};
-function renderResults(s){let html=`<p>最多票：<b>${s.result.top_names.map(esc).join("・")||"なし"}</b>（${s.result.max_votes}票）</p>`;html+=`<h3>みんなのお題</h3>`;for(const p of s.result.players){html+=`<div class="resultrow">${esc(p.nickname)}：<b>${esc(p.topic)}</b></div>`;}$("resultContent").innerHTML=html;}
+function renderVoteResults(s){
+ let html="";
+ for(const v of (s.vote_records||[])){
+  html+=`<div class="resultrow">${esc(v.voter_nickname)} → <b>${esc(v.target_nickname)}</b></div>`;
+ }
+ if(!html)html='<p class="muted">投票結果を取得できませんでした。</p>';
+ $("voteResultContent").innerHTML=html;
+}
+function renderResults(s){
+ let html=`<p>最多票：<b>${s.result.top_names.map(esc).join("・")||"なし"}</b>（${s.result.max_votes}票）</p>`;
+ html+='<h3>みんなのお題</h3>';
+ for(const p of s.result.players){html+=`<div class="resultrow">${esc(p.nickname)}：<b>${esc(p.topic)}</b></div>`;}
+ $("resultContent").innerHTML=html;
+}
 $("leaveRoom").onclick=()=>{if(poll)clearInterval(poll);poll=null;roomCode=null;state=null;hide("game");show("home");msg("");};
 boot().catch(e=>msg(e.message,true));
 })();
