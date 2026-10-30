@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pair Wolf ♡</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="./config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--pink:#f7e3eb;--lav:#e9e5f4;--blue:#e1f0f6;--bg:#faf9fc;--ink:#706b83;--deep:#5e5872;--white:#fff;--line:#e9e5ef;--shadow:0 8px 24px #716b8312}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"M PLUS Rounded 1c",sans-serif;min-height:100vh}
+header{padding:25px 16px 10px;text-align:center}h1{font-family:Nunito,"M PLUS Rounded 1c",sans-serif;font-size:34px;color:var(--deep);margin:0;font-weight:800}header p{margin:3px 0;color:#9690a5;font-size:12px}
+main{max-width:620px;margin:0 auto;padding:14px 16px 42px}.card{background:#fff;border:1px solid var(--line);border-radius:23px;padding:22px;margin:12px 0;box-shadow:var(--shadow)}
+h2{font-size:19px;margin:0 0 15px;color:var(--deep)}h3{font-size:15px;margin:0 0 8px;color:var(--deep)}
+label{display:block;font-size:13px;font-weight:700;margin:13px 0 6px}input,select{width:100%;padding:13px 14px;border:1px solid #e4dfeb;border-radius:13px;font:inherit;color:var(--deep);background:#fff;outline:none}input:focus,select:focus{border-color:#b9b0d1}
+button{border:0;border-radius:15px;padding:13px 18px;font:700 14px inherit;font-family:inherit;color:var(--deep);cursor:pointer;transition:.15s}button:disabled{opacity:.45;cursor:not-allowed}.primary{background:var(--lav)}.pink{background:var(--pink)}.blue{background:var(--blue)}.soft{background:#f5f3f8}.wide{width:100%;margin-top:12px}.row{display:flex;gap:9px;align-items:center}.row>*{flex:1}.muted{color:#9a95a7;font-size:12px}.hidden{display:none!important}.pill{display:inline-block;border-radius:99px;padding:5px 11px;background:var(--blue);font-size:11px;font-weight:700}.players{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.player{background:#faf9fc;border-radius:12px;padding:10px 12px;font-size:13px}.topic{font-size:30px;font-weight:800;color:var(--deep);text-align:center;padding:27px 8px;background:linear-gradient(120deg,var(--pink),var(--lav),var(--blue));border-radius:18px;margin:16px 0}.notice{background:#f8f6fb;padding:12px 14px;border-radius:13px;font-size:12px;line-height:1.7}.choice{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:13px;padding:12px;margin:8px 0;cursor:pointer}.choice input{width:auto}.resultrow{padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}.error{color:#b64e70;background:#fff0f4;padding:10px 12px;border-radius:12px;font-size:12px;margin:10px 0}.success{color:#4f806b;background:#eff9f3;padding:10px 12px;border-radius:12px;font-size:12px;margin:10px 0}
+@media(max-width:420px){.card{padding:18px}.players{grid-template-columns:1fr 1fr}h1{font-size:31px}}
+</style>
+</head>
+<body>
+<header><h1>Pair Wolf ♡</h1><p>みんなで遊ぶ、ひみつのお題ゲーム</p></header>
+<main>
+<div id="home" class="card">
+<h2>ようこそ！</h2>
+<label>ニックネーム</label><input id="nickname" maxlength="12" placeholder="例：さくら">
+<div class="row">
+<button class="pink" id="createRoom">ルームを作る</button>
+<button class="blue" id="joinToggle">ルームに参加</button>
+</div>
+<div id="joinBox" class="hidden">
+<label>6桁のルームコード</label><input id="roomCode" maxlength="6" inputmode="numeric" placeholder="123456">
+<button class="blue wide" id="joinRoom">参加する</button>
+</div>
+</div>
+
+<div id="game" class="hidden">
+<div class="card">
+<div class="row"><div><span class="pill" id="phasePill">待機中</span></div><div style="text-align:right"><span class="muted">ROOM</span> <b id="roomCodeLabel"></b></div></div>
+<h2 id="roomTitle" style="margin-top:14px">参加者</h2>
+<div id="players" class="players"></div>
+<p class="muted" id="playerCount"></p>
+<div id="hostSetup" class="hidden">
+<label>お題ジャンル</label><select id="genre"><option value="食べ物">食べ物</option><option value="動物">動物</option><option value="日常・おでかけ">日常・おでかけ</option><option value="学校・仕事">学校・仕事</option><option value="エンタメ">エンタメ</option></select>
+<button class="primary wide" id="startRound">お題を配ってゲーム開始</button>
+</div>
+<div id="hostControls" class="hidden"></div>
+</div>
+
+<div class="card hidden" id="secretCard">
+<h2>あなたのお題</h2>
+<p class="muted" style="text-align:center">ほかの人には見せないでね</p>
+<div class="topic" id="myTopic">？？？</div>
+<p class="notice">ホストも参加者の一人。あなたの画面には自分のお題だけが表示されるよ。</p>
+</div>
+
+<div class="card hidden" id="voteCard">
+<h2>投票</h2><p class="muted">一番違うお題を持っていそうな人に投票してね。</p>
+<div id="voteChoices"></div>
+<p class="notice">「自分のお題は1人だけかも」と思ったら、自分の名前を選んでもOK！投票先はほかの参加者には公開されないよ。</p>
+<button class="primary wide" id="sendVote">この人に投票する</button>
+</div>
+
+<div class="card hidden" id="resultCard">
+<h2>結果発表 ♡</h2><div id="resultContent"></div>
+</div>
+<div id="status" class="muted" style="text-align:center;margin:14px 0"></div>
+<button class="soft wide" id="leaveRoom">ルームを退出</button>
+</div>
+<div id="message"></div>
+</main>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+let sb, user, roomCode=null, state=null, myVote=null, selectedVote=null, poll=null;
+const topics = {
+"食べ物":["カレー","ラーメン","うどん","そば","オムライス","ハンバーグ","餃子","寿司","焼肉","たこ焼き","お好み焼き","ピザ","パスタ","グラタン","からあげ","天ぷら","肉じゃが","チャーハン","サンドイッチ","パンケーキ"],
+"動物":["犬","猫","うさぎ","パンダ","ライオン","キリン","ゾウ","イルカ","ペンギン","コアラ","キツネ","ハリネズミ","カワウソ","フクロウ","カメ","馬","クマ","リス"],
+"日常・おでかけ":["遊園地","水族館","動物園","映画館","カラオケ","温泉","キャンプ","旅行","ショッピング","ボウリング","海水浴","花火大会","ドライブ","ピクニック","ゲームセンター"],
+"学校・仕事":["体育祭","文化祭","修学旅行","給食","宿題","テスト","職員室","朝礼","会議","プレゼン","アルバイト","昼休み","卒業式","入学式"],
+"エンタメ":["アニメ","漫画","映画","ドラマ","アイドル","YouTube","ゲーム","音楽","お笑い","ミュージカル","謎解き","ボードゲーム"]
+};
+function msg(t,err=false){$("message").innerHTML=t?`<div class="${err?'error':'success'}">${esc(t)}</div>`:""}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function show(id){$(id).classList.remove("hidden")}function hide(id){$(id).classList.add("hidden")}
+async function call(action,payload={}) {
+ const {data:{session}}=await sb.auth.getSession();
+ const res=await fetch(`${localStorage.getItem("pw_url")}/functions/v1/game`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${session.access_token}`,"apikey":localStorage.getItem("pw_key")},body:JSON.stringify({action,...payload})});
+ const body=await res.json();if(!res.ok||body.error)throw new Error(body.error||"処理に失敗しました");return body;
+}
+async function boot(){
+ const cfg=window.PAIR_WOLF_CONFIG;
+ if(!cfg || !cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY ||
+    cfg.SUPABASE_URL.includes("YOUR_") || cfg.SUPABASE_ANON_KEY.includes("YOUR_")) {
+   throw new Error("管理者が config.js にSupabaseのURLと公開用キーを設定する必要があります。");
+ }
+ sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
+ let {data:{session}}=await sb.auth.getSession();
+ if(!session){const r=await sb.auth.signInAnonymously();if(r.error)throw r.error;}
+ ({data:{user}}=await sb.auth.getUser());
+ show("home");
+}
+$("joinToggle").onclick=()=>{ $("joinBox").classList.toggle("hidden"); };
+async function enter(code){roomCode=code;hide("home");show("game");$("roomCodeLabel").textContent=code;await refresh();if(poll)clearInterval(poll);poll=setInterval(()=>refresh().catch(e=>msg(e.message,true)),2200);}
+$("createRoom").onclick=async()=>{try{const name=$("nickname").value.trim();if(!name)throw Error("ニックネームを入力してね");const r=await call("create_room",{nickname:name});await enter(r.room_code);msg("ルームを作成したよ！コードを友達に共有してね");}catch(e){msg(e.message,true)}};
+$("joinRoom").onclick=async()=>{try{const name=$("nickname").value.trim(),code=$("roomCode").value.trim();if(!name||!code)throw Error("ニックネームとルームコードを入力してね");await call("join_room",{room_code:code,nickname:name});await enter(code);}catch(e){msg(e.message,true)}};
+async function refresh(){
+ if(!roomCode)return;const s=await call("snapshot",{room_code:roomCode});state=s;
+ $("phasePill").textContent=({lobby:"参加者募集中",reveal:"お題確認",discussion:"話し合い",voting:"投票中",results:"結果発表"})[s.phase]||s.phase;
+ $("players").innerHTML=s.players.map(p=>`<div class="player">${esc(p.nickname)} ${p.is_host?'✦':''} ${p.has_voted?'✓':''}</div>`).join("");
+ $("playerCount").textContent=`${s.players.length} / 12人（3人以上で開始）`;
+ $("hostSetup").classList.toggle("hidden",!s.is_host||s.phase!=="lobby");
+ $("hostControls").classList.toggle("hidden",!s.is_host||!["reveal","discussion","voting","results"].includes(s.phase));
+ $("hostControls").innerHTML="";
+ if(s.is_host&&s.phase==="reveal")$("hostControls").innerHTML='<button class="blue wide" id="toDiscussion">話し合いへ進む</button>';
+ if(s.is_host&&s.phase==="discussion")$("hostControls").innerHTML='<button class="pink wide" id="toVoting">投票を開始する</button>';
+ if(s.is_host&&s.phase==="results")$("hostControls").innerHTML='<button class="primary wide" id="nextRound">次のラウンドへ</button>';
+ if($("toDiscussion"))$("toDiscussion").onclick=()=>changePhase("discussion");
+ if($("toVoting"))$("toVoting").onclick=()=>changePhase("voting");
+ if($("nextRound"))$("nextRound").onclick=()=>changePhase("lobby");
+ hide("secretCard");hide("voteCard");hide("resultCard");
+ if(["reveal","discussion","voting"].includes(s.phase)&&s.my_topic){show("secretCard");$("myTopic").textContent=s.my_topic;}
+ if(s.phase==="voting"){show("voteCard");renderVotes(s);}
+ if(s.phase==="results"){show("resultCard");renderResults(s);}
+ $("status").textContent=s.phase==="voting"?`投票済み ${s.vote_count} / ${s.players.length}人`:s.phase==="discussion"?"みんなで話し合ってね":s.phase==="reveal"?"自分のお題を確認してね":"";
+}
+async function changePhase(phase){try{await call("set_phase",{room_code:roomCode,phase});await refresh()}catch(e){msg(e.message,true)}}
+$("startRound").onclick=async()=>{try{if(state.players.length<3)throw Error("3人以上集まってから開始してね");await call("start_round",{room_code:roomCode,genre:$("genre").value});await refresh()}catch(e){msg(e.message,true)}};
+function renderVotes(s){$("voteChoices").innerHTML=s.players.map(p=>`<label class="choice"><input type="radio" name="vote" value="${esc(p.id)}" ${selectedVote===p.id?"checked":""}>${esc(p.nickname)}${p.id===user.id?"（自分）":""}</label>`).join("");document.querySelectorAll('input[name="vote"]').forEach(el=>el.onchange=()=>selectedVote=el.value);$("sendVote").disabled=!!s.has_voted; $("sendVote").textContent=s.has_voted?"投票済み":"この人に投票する";}
+$("sendVote").onclick=async()=>{try{if(!selectedVote)throw Error("投票先を選んでね");await call("vote",{room_code:roomCode,target_player_id:selectedVote});myVote=selectedVote;await refresh()}catch(e){msg(e.message,true)}};
+function renderResults(s){let html=`<p>最多票：<b>${s.result.top_names.map(esc).join("・")||"なし"}</b>（${s.result.max_votes}票）</p>`;html+=`<h3>みんなのお題</h3>`;for(const p of s.result.players){html+=`<div class="resultrow">${esc(p.nickname)}：<b>${esc(p.topic)}</b></div>`;}$("resultContent").innerHTML=html;}
+$("leaveRoom").onclick=()=>{if(poll)clearInterval(poll);poll=null;roomCode=null;state=null;hide("game");show("home");msg("");};
+boot().catch(e=>msg(e.message,true));
+})();
+</script>
+</body></html>
